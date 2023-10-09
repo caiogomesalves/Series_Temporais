@@ -1,9 +1,235 @@
 ---
 title: "Trabalho 2"
 author: "Caio Gomes Alves"
+date: "`r format(Sys.Date(),'%d/%m/%Y')`"
 output: pdf_document
+toc: true
+toc-title: "Sumário"
 ---
 
-# Teste
+```{r setup}
+# Pacotes utilizados
+library(astsa)
+```
 
-Trabalho teste.
+\newpage
+
+# Questão 10
+
+## a)
+
+Para verificar a ordem do modelo $AR$ a ser ajustado, verifiquemos inicialmente o **ACF** e **PACF** amostrais:
+
+```{r acf10, results = F}
+acf2(cmort, plot = TRUE)
+```
+
+Podemos verificar que o **PACF** tem valores significativos para $h=1,2$, portanto será ajustado um modelo $AR(2)$
+
+```{r ar2}
+(regr <- ar.ols(cmort, order=2, demean=FALSE, intercept=TRUE))
+```
+
+Com os resultados obtidos, temos que o modelo $AR(2)$ é dado por:
+
+\begin{equation}
+X_t  =  11,45 + 0,4286 X_{t-1} + 0,4418 X_{t-2} + W_t,
+\end{equation}
+
+Onde $\hat{\sigma}^2_W = 32,32$.
+
+## b)
+
+```{r predicoes}
+# Predições:
+(fore <- predict(regr, n.ahead=4))
+
+# Gráfico:
+ts.plot(cmort, fore$pred, col=1:2, xlim=c(1979.5,1980),
+        lwd=2, ylab="Mortalidade", xlab="Tempo")
+
+# Intervalo superior:
+U <- fore$pred+fore$se
+
+# Intervalo inferior:
+L <- fore$pred-fore$se
+
+# Polígono dos intervalos de previsão:
+xx <- c(time(U), rev(time(U))); yy = c(L, rev(U))
+polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
+lines(fore$pred, type="p", col=2)
+```
+
+# Questão 18
+
+## a)
+
+Como o modelo $AR(2)$ já foi ajustado no exercício anterior, vamos ajustar o modelo usando Yule-Walker:
+
+```{r yule-walker}
+# Ajuste do modelo:
+(regr.yw <- ar.yw(cmort, order = 2))
+
+# Comparação dos coeficientes:
+regr$ar      # Regressão linear
+regr.yw$ar   # Yule-Walker
+```
+
+## b)
+
+```{r yule-walker-erro}
+# Comparação dos erros dos coeficientes:
+regr$asy.se.coef
+sqrt(diag(regr.yw$asy.var.coef))
+
+sqrt(length(cmort))
+```
+
+Temos pelo Teorema III.10 que:
+
+\begin{equation}
+\begin{pmatrix} \widehat{\phi}_1 \\ \widehat{\phi}_2 \end{pmatrix} \, \sim \, N\left( \begin{pmatrix} \phi_1 \\ \phi_2 \end{pmatrix}
+\displaystyle\frac{1}{n}\begin{pmatrix} 1-\phi_2^2 & -\phi_1(1+\phi_2) \\ -\phi_1(1+\phi_2) & 1-\phi_2^2 \end{pmatrix}\right)
+\end{equation}
+
+Com isso, temos que os valores dos erros dos coeficientes do modelo linear tenderão para os valores dos erros dos coeficientes estimados por Yule-Walker.
+
+# Questão 30
+
+```{r log_varve}
+dados <- ts(log(varve)[1:100], frequency = 12)
+
+# Como alpha = 1-lambda,  temos que:
+ajuste_1 <- HoltWinters(dados, alpha = 0.75, beta = F, gamma = F)
+ajuste_2 <- HoltWinters(dados, alpha = 0.5, beta = F, gamma = F)
+ajuste_3 <- HoltWinters(dados, alpha = 0.25, beta = F, gamma = F)
+```
+
+```{r, echo = T, fig.height = 28, fig.width = 20}
+# Gráficos dos ajustes:
+par(mfrow = c(3, 1))
+plot(ajuste_1, main = expression(alpha == 0.75))
+plot(ajuste_2, main = expression(alpha == 0.5))
+plot(ajuste_3, main = expression(alpha == 0.25))
+```
+
+Podemos verificar que conforme aumentamos $\lambda$ (e consequentemente diminuímos $\alpha$) o ajuste de médias móveis exponencialnmente ponderadas (EWMA) se torna mais suave, visto que considera pesos maiores para as observações anteriores.
+
+# Questão 32
+
+Inicialmente iremos plotar o gráfico de `oil` para verificar o padrão da série:
+
+```{r graf_oil}
+plot(oil)
+```
+
+Como a série não parece ser estacionária, incluiremos o parâmetro `no.constant = F` no modelo a ser ajustado:
+
+```{r mod_sarima}
+# Modelo AR(2)
+sarima(oil, 2, 0, 0, no.constant = F)
+
+# Modelo MA(1)
+sarima(oil, 0, 0, 2, no.constant = F)
+
+# Modelo ARIMA(2, 0, 2)
+sarima(oil, 2, 0, 2, no.constant = F)
+
+# Como no modelo anterior o termo de MA(2) não foi
+# significativo,  será ajustado um modelo ARIMA(2, 0, 1)
+sarima(oil, 2, 0, 1, no.constant = F)
+
+# Usando auto.arima
+auto.arima(oil)
+
+# Chegamos que o melhor modelo é o ARIMA(1, 1, 3)
+sarima(oil, 1, 1, 3, no.constant = F)
+```
+
+# Questão 34
+
+```{r graf_so2}
+# Visualização da série temporal
+plot(so2)
+
+# Para ajustar o modelo,  usaremos o auto.arima
+# para encontrar os coefficientes
+auto.arima(so2)
+
+modelo <- arima(so2, order = c(2, 1, 3))
+
+# Previsões para n = 4:
+# Predições:
+(previsoes <- predict(regr, n.ahead=4))
+
+# Gráfico:
+ts.plot(cmort, previsoes$pred, col=1:2, xlim=c(1979.5,1980),
+        lwd=2, ylab="Nível de SO2", xlab="Tempo")
+
+# Intervalo superior:
+U <- previsoes$pred+previsoes$se
+
+# Intervalo inferior:
+L <- previsoes$pred-previsoes$se
+
+# Polígono dos intervalos de previsão:
+xx <- c(time(U), rev(time(U))); yy = c(L, rev(U))
+polygon(xx, yy, border = 8, col = gray(.6, alpha = .2))
+lines(previsoes$pred, type="p", col=2)
+```
+
+Podemos verificar que as previsões para as quatro próximas semanas é de aumento nos níveis de dióxido de enxofre, além de que pode-se verificar que as bandas de confiança aumentam para as previsões à medida que se aumenta o horizonte, como esperado.
+
+# Questão 36
+
+## a)
+
+```{r graf_cpg}
+plot.ts(cpg)
+```
+
+Como descrito no enunciado da questão, o que se observa é que os valores começaram a decair de maneira exponencial a partir de 1982, até que atingiu valores próximos de zero em 2008.
+
+## b)
+
+Para modelar $C_t \approx \alpha e^{\beta t}$ usaremos uma regressão linear (`lm(log(C_t) ~ t)`):
+
+```{r ajuste_linear}
+# Ajuste do modelo
+(ajuste <- lm(log(cpg) ~ time(cpg)))
+
+grade <- seq(1980, 2008, by = 1)
+pontos <- exp(predict(ajuste, newdata = as.data.frame(grade)))
+
+plot.ts(cpg)
+lines(ts(pontos, start = c(1980)), col = "red")
+```
+
+## c)
+
+Podemos verificar os resíduos plotando-os contra os valores ajustados:
+
+```{r plot_res}
+plot(ajuste, which = 1)
+```
+
+Percebe-se que os resíduos possuem um comportamento não-aleatório que não foi captado pelo modelo linear da forma $C_t \approx \alpha e^{\beta t}$.
+
+## d)
+
+Ajustando os dados novamente utilizando os erros como autocorrelacionados, escolhe-se ajustar com os modelos $AR(p)$. Conferindo o ACF, temos que:
+
+```{r acf_cpg}
+acf(cpg)
+```
+
+Utilizará-se o modelo $AR(2)$ para modelar os erros autocorrelacionados:
+
+```{r mod_ar2}
+(ajuste_ar <- ar.yw(cpg,order.max = 2,demean = F))
+
+# Plotando os resíduos:
+plot(residuals(ajuste_ar))
+```
+
+Vemos que os resíduos do modelo com os erros autocorrelacionados tem um comportamento que tende a zero, conforme a série progride.
