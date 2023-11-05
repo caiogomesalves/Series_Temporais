@@ -1,0 +1,68 @@
+---
+title: "Trabalho 3"
+author: "Caio Gomes Alves"
+date: "`r format(Sys.Date(),'%d/%m/%Y')`"
+output: pdf_document
+toc: true
+toc-title: "Sumário"
+---
+
+```{r setup}
+# Pacotes utilizados
+library(astsa)
+library(dplyr)
+library(seewave)
+```
+
+\newpage
+
+# Questão 9
+
+```{r dados_1, results = F}
+# Carregando os dados:
+dados <- sunspotz
+
+# Análise espectral
+(A.E <- mvspec(dados, log="no"))
+```
+
+
+```{r}
+df <- A.E$details #Salvando o vetor de Espectros
+
+df[which(df[,3] == max(df[,3])),] # plotando qual a frequencia que representa o pico observado no gráfico
+
+```
+Observamos que a frequência que representa o maior spectro no períodograma pe de 0.0917, vamos calcular a quantidade de tempo que leva para fecharmos um ciclo da sazonalidade
+
+```{r}
+(freq <- 1/0.0917)
+```
+
+Representando algo em torno de 11 anos, vamos ver se faz sentido.
+
+```{r}
+plot(dados)
+```
+
+Plotando a série temporal vemos que a cada 10 anos temos um fechamento de mais ou menos 5 ciclos, o que bate com a informação calculada de frequência.
+
+## Intervalo de confiança
+
+Começo retirando quantos graus de liberdade o modelo apresenta:
+```{r}
+# Graus de liberdade da análise espectral:
+(g.l <- A.E$df)
+
+#Calculando os valores de referência na
+# distribuição qui-quadrado:
+qchisq(0.025, g.l)
+qchisq(0.975, g.l)
+```
+
+Formando o vetor para o intervalo de confiança:
+```{r}
+c(2*(freq/qchisq(0.975, g.l)) ,2*(freq/qchisq(0.025, g.l))) #Pouca coisa de amplitude
+```
+
+Com um intervalo tão amplo, fica difícil de dar algum significado ao intervalo de confiança
